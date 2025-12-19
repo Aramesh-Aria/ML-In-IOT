@@ -21,7 +21,17 @@ def load_dataset(prefer_processed: bool = True) -> pd.DataFrame:
     df = df.loc[:, ~df.columns.str.contains(r"^Unnamed", case=False, regex=True)]
     if "" in df.columns:
         df = df.drop(columns=[""])
+
+    # Fallback: if processed is broken or doesn't contain target, use raw
+    target = config.TARGET_COL or None
+    if target and target not in df.columns:
+        df = pd.read_csv(config.DATA_RAW)
+        df = df.loc[:, ~df.columns.str.contains(r"^Unnamed", case=False, regex=True)]
+        if "" in df.columns:
+            df = df.drop(columns=[""])
+
     return df
+
 
 def detect_target_col(df: pd.DataFrame) -> str:
     if config.TARGET_COL and config.TARGET_COL in df.columns:
