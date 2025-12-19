@@ -1,4 +1,4 @@
-,timestamp,counter,device_id,distance,rssi,snr,sf,frequency,airtime,energy,length,temperature,rh,bp,pm2_5,pm10,log_distance
+num,timestamp,counter,device_id,distance,rssi,snr,sf,frequency,airtime,energy,length,temperature,rh,bp,pm2_5,pm10,log_distance
 244197,2021-11-04,66749,EN1,2140.0,-73,0.2,9,905300000,0.267264,1.369,208,20.5,80.0,849.5,9.0,10.0,3.330413773349191
 251493,2021-11-05,69888,EN1,2140.0,-73,5.2,8,904300000,0.287232,1.383,624,23.9,62.4,851.7,26.0,28.0,3.330413773349191
 264672,2021-11-06,76321,EN1,2140.0,-72,8.5,8,903900000,0.338432,1.401,808,31.7,35.0,849.3,82.0,84.0,3.330413773349191
