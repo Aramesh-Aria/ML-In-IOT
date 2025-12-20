@@ -30,10 +30,37 @@ DROP_COLS = ["num","timestamp", "device_id", "counter"]
 
 # --- Models to focus on (2–3 models only) ---
 PRIMARY_MODELS = [
-    "model_random_forest.sav",
-    "model_svr.sav",
-    "model_ridge.sav",
+    "ridge.joblib",
+    "svr.joblib",
+    "rf.joblib",
 ]
 
-# اگر بخواهید به‌جای این‌ها، MLR را هم داشته باشید:
-# PRIMARY_MODELS = ["model_random_forest.sav", "model_svr.sav", "model_mlr.sav"]
+
+
+# مدل منتخب
+SELECTED_TRAINED_MODEL = "ridge.joblib"  # چون بهترین rmse را دارد
+
+# مسیر مدل‌های آموزش‌داده‌شده
+TRAINED_MODELS_DIR = PROJECT_ROOT / "models_trained"
+
+# محدوده‌های LoRa (برای TPC)
+SF_MIN, SF_MAX = 7, 12
+TP_MIN, TP_MAX = 2, 14  # dBm (برای اروپا/LoRa رایج است؛ اگر منطقه‌تان متفاوت است، اصلاح کنید)
+
+# Link Margin (فرض عملی برای ارائه؛ اگر مقاله مقدار مشخص دارد، همان را جایگزین کنید)
+LINK_MARGIN_DB = 10.0
+
+# جدول SNR_limit بر اساس SF (مقادیر رایج برای BW=125kHz؛ برای ارائه کفایت دارد)
+SNR_LIMIT_BY_SF = {
+    7: -7.5,
+    8: -10.0,
+    9: -12.5,
+    10: -15.0,
+    11: -17.5,
+    12: -20.0,
+}
+
+# baseline ثابت برای مقایسه
+BASELINE_SF = 12
+BASELINE_TP = 14
+LORA_BW_HZ = 125_000
