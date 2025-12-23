@@ -1,56 +1,113 @@
+"""
+
+این فایل «مرکز تنظیمات پروژه» است.
+
+هدف:
+- همه مسیرهای فایل‌ها (data/models/outputs) و پارامترهای آزمایش در یک نقطه تعریف شود
+- اسکریپت‌های مختلف (train_baselines, run_pipeline, summarize_results, ...) به جای hardcode کردن مسیرها/پارامترها
+  از این فایل استفاده کنند تا پروژه قابل نگهداری و قابل ارائه شود.
+
+نکته: هر تغییری در انتخاب مدل نهایی، محدوده SF/TP یا Link Margin فقط باید در همین فایل انجام شود.
+"""
+
 from pathlib import Path
 
-# --- Paths ---
+# =============================================================================
+# 1) Paths (مسیرها)
+# =============================================================================
+
+# مسیر ریشه پروژه:
+# __file__ مسیر همین فایل config.py است
+# parents[1] یعنی: src/config.py -> یک سطح بالا (src) -> یک سطح بالا (ریشه پروژه)
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
+# مسیر دیتاست خام و (در صورت نیاز) دیتاست پردازش‌شده
 DATA_RAW = PROJECT_ROOT / "data" / "raw" / "subsampled_data.csv"
 DATA_PROCESSED = PROJECT_ROOT / "data" / "processed" / "dataset_clean.csv"
 
+# مسیر مدل‌های اولیه مقاله (پسوند .sav) — در مسیر نهایی پروژه عموماً استفاده نمی‌شوند
 MODELS_DIR = PROJECT_ROOT / "models"
 
+# مسیر خروجی‌ها (تمام فایل‌های ساخته‌شده توسط پایپ‌لاین اینجا ذخیره می‌شود)
 OUTPUT_DIR = PROJECT_ROOT / "outputs"
-PRED_DIR = OUTPUT_DIR / "predictions"
-FIG_DIR = OUTPUT_DIR / "figures"
-TABLE_DIR = OUTPUT_DIR / "tables"
+PRED_DIR = OUTPUT_DIR / "predictions"  # خروجی‌های عددی (CSV)
+FIG_DIR = OUTPUT_DIR / "figures"       # خروجی‌های تصویری (PNG)
+TABLE_DIR = OUTPUT_DIR / "tables"      # جدول‌های خروجی (اگر بعداً اضافه شود)
 
+# فایل‌های خروجی استاندارد (برای اینکه همه اسکریپت‌ها از یک نام ثابت استفاده کنند)
 MODEL_METRICS_CSV = PRED_DIR / "model_metrics.csv"
 SNR_PREDICTIONS_CSV = PRED_DIR / "snr_predictions.csv"
 TPC_DECISIONS_CSV = PRED_DIR / "tpc_decisions.csv"
 
-# --- Experiment settings ---
+
+# =============================================================================
+# 2) Experiment settings (تنظیمات آزمایش/یادگیری)
+# =============================================================================
+
+# برای تکرارپذیری نتایج:
+# اگر RANDOM_STATE ثابت باشد، train/test split و برخی مدل‌ها (مثل RF) رفتار تکرارپذیر دارند.
 RANDOM_STATE = 42
+
+# نسبت داده‌ای که برای آزمون (Test) کنار گذاشته می‌شود.
+# مثال: 0.2 یعنی 80% آموزش و 20% آزمون
 TEST_SIZE = 0.2
 
-# --- Target detection (fallback) ---
-# اگر نام ستون هدف را دقیق می‌دانید، TARGET_COL را مقداردهی کنید (مثلاً "SNR")
-TARGET_COL = "snr"
-TARGET_CANDIDATES = ["snr"]
-#ستون هایی که میخوایم حذف کنیم
-DROP_COLS = ["num","timestamp", "device_id", "counter"]
 
-# --- Models to focus on (2–3 models only) ---
+# =============================================================================
+# 3) Target / Feature selection (هدف و انتخاب ویژگی‌ها)
+# =============================================================================
+
+# ستون هدف (Target) برای یادگیری ماشین
+# این پروژه SNR را پیش‌بینی می‌کند، پس ستون هدف "snr" است.
+TARGET_COL = "snr"
+
+# در برخی پروژه‌ها detect_target_col ممکن است چند نام محتمل داشته باشد،
+# اما اینجا فقط snr داریم.
+TARGET_CANDIDATES = ["snr"]
+
+# ستون‌هایی که برای یادگیری مناسب نیستند یا باعث نشت اطلاعات می‌شوند:
+DROP_COLS = ["num", "timestamp", "device_id", "counter"]
+
+# =============================================================================
+# 4) Models configuration (مدل‌ها)
+# =============================================================================
+
+# مدل‌هایی که برای این پروژه روی آن‌ها تمرکز داریم (مدل‌های آموزش‌داده‌شده توسط خودمان)
+# این‌ها در مسیر models_trained/ ذخیره می‌شوند.
 PRIMARY_MODELS = [
     "ridge.joblib",
     "svr.joblib",
     "rf.joblib",
 ]
 
+# مدل منتخب نهایی برای اجرا در پایپ‌لاین
+# دلیل انتخاب: در خروجی train_baselines بهترین RMSE/R² را داده است.
+SELECTED_TRAINED_MODEL = "ridge.joblib"
 
-
-# مدل منتخب
-SELECTED_TRAINED_MODEL = "ridge.joblib"  # چون بهترین rmse را دارد
-
-# مسیر مدل‌های آموزش‌داده‌شده
+# مسیر مدل‌های آموزش‌داده‌شده توسط اسکریپت train_baselines.py
 TRAINED_MODELS_DIR = PROJECT_ROOT / "models_trained"
 
-# محدوده‌های LoRa (برای TPC)
-SF_MIN, SF_MAX = 7, 12
-TP_MIN, TP_MAX = 2, 14  # dBm (برای اروپا/LoRa رایج است؛ اگر منطقه‌تان متفاوت است، اصلاح کنید)
 
-# Link Margin (فرض عملی برای ارائه؛ اگر مقاله مقدار مشخص دارد، همان را جایگزین کنید)
+# =============================================================================
+# 5) LoRa / TPC parameters (پارامترهای LoRaWAN و منطق TPC)
+# =============================================================================
+
+# بازه مجاز Spreading Factor برای تصمیم‌گیری TPC
+SF_MIN, SF_MAX = 7, 12
+
+# بازه مجاز توان ارسال (Transmit Power) بر حسب dBm
+TP_MIN, TP_MAX = 2, 14
+
+# Link Margin:
+# یک حاشیه اطمینان (safety margin) که باعث می‌شود تصمیم‌ها کمی محافظه‌کارانه‌تر باشند.
+# هرچه بزرگ‌تر => احتمال پایداری بیشتر ولی انرژی بیشتر
+# هرچه کوچک‌تر => انرژی کمتر ولی ریسک افت لینک بیشتر
 LINK_MARGIN_DB = 10.0
 
-# جدول SNR_limit بر اساس SF (مقادیر رایج برای BW=125kHz؛ برای ارائه کفایت دارد)
+# SNR_limit برای هر SF:
+# آستانه حداقل SNR قابل قبول برای دیکد شدن سیگنال (مقادیر رایج برای BW=125kHz)
+# این جدول در محاسبه margin استفاده می‌شود:
+#   Me = SNR_eff - SNR_limit(SF) - LINK_MARGIN_DB
 SNR_LIMIT_BY_SF = {
     7: -7.5,
     8: -10.0,
@@ -60,7 +117,12 @@ SNR_LIMIT_BY_SF = {
     12: -20.0,
 }
 
-# baseline ثابت برای مقایسه
+# baseline برای مقایسه انرژی:
+# یعنی می‌گوییم «اگر سیستم همیشه با SF=12 و TP=14 کار کند» انرژی مبنا چقدر است
+# و تصمیم‌های TPC را نسبت به آن نرمال می‌کنیم.
 BASELINE_SF = 12
 BASELINE_TP = 14
+
+# پهنای باند LoRa (صرفاً برای مستندسازی فرضیات)
+# چون SNR_limit ها معمولاً بر اساس BW تعریف می‌شوند.
 LORA_BW_HZ = 125_000
