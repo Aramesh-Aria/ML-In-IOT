@@ -1,35 +1,145 @@
-# Subset of LoRaWAN Path Loss Dataset including Environmental Variables and associated ML-based SNR Models
-This dataset includes a subset of the measurement campaign for LoRaWAN End Nodes measuring path loss and environmental variables previously shared in https://github.com/magonzalezudem/MDPI_LoRaWAN_Dataset_With_Environmental_Variables. This subset included one daily register per End Node where we guaranteed that the SNR variability was high, i.e., the SNR values were under the percentile 5th and above the percentile 95th. 
+# Energy Optimization IoT (LoRaWAN + ML)
 
-The subset includes the following fields:
+## نمای کلی
 
-### Row identification
-- **row_number**: A sequential number from 1 to 990750
-- **timestamp**: The date and time field for the current measurement
-- **device_id**: The name of the EN that corresponds to the current measurement
-### Physical/geometric conditions
-- **distance**: The distance between the EN and the GW in meters
-- **ht**: Antenna height of the EN in meters
-- **hr**: Antenna height of the GW in meters
-### Link budget features
-- **ptx**: Transmitter (EN) radio power in dBm
-- **ltx**: Transmitter (EN) losses associated to cables and connectors in dB
-- **gtx**: Transmitter (EN) antenna gain (characterized with a Vector Network Analyzer) in dBi
-- **lrx**: Receiver (GW) losses associated to cables and connectors in dB
-- **grx**: Receiver (GW) antenna gain (characterized with a Vector Network Analyzer) in dBi
-- **frequency**: Carrier frequency in Hz
-- **frame_length**: Number of bytes of the current transmission
-### Environmental variables
-- **temperature**: Environment temperature of the current measurement in °C
-- **rh**: Relative humidity of the current measurement in %
-- **bp**: Barometric pressure of the current measurement in hPa
-- **pm2_5**: Particulate matter of the current measurement in ug/m3
-### Received signal strength and channel signal to noise ratio
-- **rssi**: Received signal strength indicator in the GW in dBm
-- **snr**: Channel signal to noise ratio in dB
-- **toa**: Time on air of the current transmission in seconds
-### Calculated path loss and energy
-- **experimental_pl**: Experimental path loss calculated by ptx+gtx-ltx+grx-lrx-rssi
-- **energy**: Consumed energy in current transmission in Joules
+این پروژه یک پایپ‌لاین «انتها-به-انتها» برای **کاهش مصرف انرژی در LoRaWAN** ارائه می‌کند که در آن:
 
-This dataset can be used to estimate the impact of the weather changes in path loss for LoRaWAN deployments, and get more accurate tracking/positioning data or more efficient energy reduction strategies.
+1. با **یادگیری ماشین** مقدار **SNR** پیش‌بینی می‌شود،
+2. سپس با یک منطق **Transmission Power Control (TPC)**، مقادیر **Spreading Factor (SF)** و **Transmit Power (TP)** انتخاب می‌شوند تا ضمن حفظ حاشیه لینک، انرژی کاهش یابد. 
+
+پایه مفهومی پروژه از ایده‌ی **Margin Excess (Me)** در ADR/TPC و نقش **Link Margin (LM)** و وابستگی آستانه **SNRlimit** به SF الهام گرفته شده است.
+
+---
+
+## ایده اصلی (Core Idea)
+
+### 1) پیش‌بینی SNR
+
+مدل ML با هدف `snr` آموزش داده می‌شود (پس ستون هدف باید در دیتاست موجود باشد). 
+
+### 2) تصمیم‌گیری TPC با Margin (Me)
+
+تصمیم‌ها بر اساس مفهوم margin ساخته می‌شوند (نسخه ساده‌شده و ارائه‌محور):
+
+* اگر **Me < 0** → لینک از نظر شرط ما ایمن نیست ⇒ ابتدا **SF** زیاد می‌شود (تا SF_MAX) و در صورت نیاز **TP** زیاد می‌شود (تا TP_MAX).
+* اگر **Me ≥ 0** → حاشیه داریم ⇒ ابتدا **SF** کم می‌شود و سپس **TP** کم می‌شود تا انرژی کاهش یابد، تا جایی که Me غیرمنفی بماند.
+
+پارامترها و محدوده‌ها از `config.py` می‌آیند (SF: 7..12، TP: 2..14 dBm، و LM پیش‌فرض 10 dB).
+
+### 3) شاخص انرژی (Proxy)
+
+برای مقایسه ساده و قابل ارائه، یک **انرژی نسبی** استفاده می‌شود:
+
+* `RE ∝ 10^(TP/10) * 2^SF`
+* و سپس نسبت به baseline نرمال می‌شود (`energy_norm`).
+
+Baseline پیش‌فرض برای مقایسه: `SF=12` و `TP=14`.
+
+---
+
+## ساختار خروجی‌ها (Artifacts)
+
+پس از اجرای پایپ‌لاین:
+
+* `outputs/predictions/snr_predictions.csv` شامل `snr_true` و `snr_pred`
+* `outputs/predictions/tpc_decisions.csv` شامل `sf_new, tp_new, me, energy_norm`
+* `outputs/figures/*.png` شامل نمودارهای:
+
+  * `snr_true_vs_pred.png`
+  * `sf_distribution.png`
+  * `tp_distribution.png`
+  * `me_distribution.png`
+  * `energy_norm_hist.png` 
+
+برای خلاصه‌سازی KPIها از فایل تصمیم‌ها:
+
+* میانگین/میانه `energy_norm`
+* درصد `energy_norm < 1` و `energy_norm < 0.5`
+* درصد `Me >= 0` و آمارهای پرتکرار SF/TP 
+
+---
+
+## اسکریپت‌های اصلی
+
+* `src/sanity_check.py` (اختیاری): بررسی سریع سلامت دیتاست (shape، ستون‌ها، NaN و …) 
+* `src/train_baselines.py`: آموزش و مقایسه Ridge / RF / SVR و ذخیره مدل‌ها و متریک‌ها (RMSE و R²) 
+* `src/run_pipeline.py`: اجرای End-to-End (پیش‌بینی SNR → تصمیم TPC → خروجی CSV/شکل‌ها) 
+* `src/summarize_results.py`: استخراج KPIهای نهایی از `tpc_decisions.csv` 
+
+---
+
+## اجرای سریع (Quickstart)
+
+### 1) نصب وابستگی‌ها
+
+حداقل نیازها: `pandas, numpy, scikit-learn, matplotlib, joblib`
+
+### 2) (اختیاری) چک دیتاست
+
+```bash
+python -m src.sanity_check
+```
+
+### 3) آموزش مدل‌ها و انتخاب مدل منتخب
+
+```bash
+python -m src.train_baselines
+```
+
+خروجی متریک‌ها در:
+
+* `outputs/predictions/model_metrics.csv` 
+
+### 4) اجرای پایپ‌لاین اصلی
+
+```bash
+python -m src.run_pipeline
+```
+
+خروجی‌ها در:
+
+* `outputs/predictions/` و `outputs/figures/` 
+
+### 5) خلاصه KPIها
+
+```bash
+python -m src.summarize_results
+```
+
+این اسکریپت KPIهای کلیدی (انرژی، SF/TP، margin) را چاپ می‌کند. 
+
+---
+
+## تنظیمات مهم (Configuration)
+
+در `src/config.py` قابل تغییر است:
+
+* مسیرها (data/models/outputs)
+* ستون هدف (`snr`) و ستون‌های حذف‌شونده
+* مدل منتخب (`SELECTED_TRAINED_MODEL`)
+* محدوده SF/TP و مقدار `LINK_MARGIN_DB`
+* baseline انرژی (`BASELINE_SF`, `BASELINE_TP`)
+
+---
+
+## نکات و محدودیت‌ها
+
+* الگوریتم TPC و انرژی، **نمایشی/Proxy** هستند و هدفشان ارائه‌ی روند تصمیم‌گیری و مقایسه سناریوهاست (نه شبیه‌سازی دقیق فیزیک لینک یا باتری).
+* اگر بخواهید پروژه به نسخه «واقع‌گرایانه‌تر» نزدیک شود، مسیر طبیعی توسعه این است که:
+
+  * مدل انرژی را به ToA و پارامترهای PHY دقیق‌تر متصل کنید،
+  * و KPIهای شبکه مثل PDR/Collision را نیز وارد ارزیابی کنید (مطابق ادبیات ML/RL در تخصیص منابع LoRaWAN).
+
+---
+
+## رفرنس‌های پژوهشی (پایه ایده)
+
+* ML-Assisted TPC با محوریت SNR prediction و مفهوم Me/LM
+
+* Machine-Learning-Assisted Transmission Power
+Control for LoRaWAN Considering
+Environments With High Signal-
+to-Noise Variation (MAURICIO GONZÁLEZ-PALACIO , DIANA TOBÓN-VALLEJO, LINA M. SEPÚLVEDA-CANO
+,
+MARIO LUNA-DELRISCO, CHRISTOF RÖEHRIG , (Member, IEEE),
+AND LONG BAO LE ,(Fellow, IEEE))
