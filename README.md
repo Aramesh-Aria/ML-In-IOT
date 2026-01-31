@@ -131,7 +131,7 @@ python -m src.analyze_tpc_vs_baseline
 [1] M. González-Palacio, D. Tobón-Vallejo, L. M. Sepúlveda-Cano,  
 M. Luna-DelRisco, C. Röehrig, and L. B. Le,  
 “Machine-Learning-Assisted Transmission Power Control for LoRaWAN Considering Environments With High Signal-to-Noise Variation,”  
-IEEE Access, 2021.
+IEEE Access, 2024.
 
 - GitHub Repository (Authors):  
   https://github.com/magonzalezudem/snr_tpc_ieee_access
