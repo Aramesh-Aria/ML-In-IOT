@@ -10,7 +10,7 @@
 
 گزارش علمی کامل پروژه (بیش از ۳۰ صفحه) که مبنای طراحی و پیاده‌سازی این کد بوده است:
 
-📘 **Energy_Optimization_IOT_Using ML.pdf**
+📘 *[Energy_Optimization_IOT_Using ML.pdf](/Energy_Optimization_IOT_UsingML.pdf)*
 
 در این گزارش:
 
